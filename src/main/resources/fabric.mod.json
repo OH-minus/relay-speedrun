@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id":            "relay-speedrun",
+  "version":       "${version}",
+  
+  "name":          "relay-speedrun",
+  "description":   "",
+  "authors":       ["OH__minus"],
+  "contact":       {},
+  
+  "license":       "All-Rights-Reserved",
+  "icon":          "assets/relay-speedrun/icon.png",
+  
+  "environment":   "server",
+  "entrypoints":   {
+    "main": ["relaySpeedrun.RelaySpeedrun"]
+  },
+  
+  "mixins":        [
+    "relay-speedrun.mixins.json"
+  ],
+  
+  "depends":       {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api":   "*",
+    "minecraft":    "${minecraft_version}"
+  }
+}

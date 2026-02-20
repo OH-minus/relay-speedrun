@@ -1,0 +1,24 @@
+{
+  "required":           true,
+  "minVersion":         "0.8",
+  "package":            "relaySpeedrun.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins":             [
+    "HungerManagerMixin",
+    "ItemEntityMixin",
+    "SculkShriekerWarningManagerMixin",
+    "ServerPlayerEntityMixin",
+    "ServerPlayNetworkHandlerMixin",
+    "ServerPlayNetworkHandlerMixinClass",
+    "TntEntityMixin",
+    "VaultBlockEntityServerMixin"
+  ],
+  "client":             [
+  ],
+  "injectors":          {
+    "defaultRequire": 1
+  },
+  "overwrites":         {
+    "requireAnnotations": true
+  }
+}
