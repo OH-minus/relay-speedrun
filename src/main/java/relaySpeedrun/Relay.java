@@ -49,21 +49,54 @@ import static relaySpeedrun.RelaySpeedrun.LOGGER;
 
 public class Relay {
     
-    private static final Gson        GSON  = new Gson();
-    private static final Path        RELAY = Paths.get("relay.json");
-    private static final ScoreHolder IGT, RTA;
+    private static final Gson GSON = new Gson();
     
-    /// {@code timer} counts down from here
-    public static  int                      countdown = 1200;
-    private static State                    state     = State.BEFORE_START;
+    /// The path to the file in which the current state of the relay speedrun is saved.
+    private static final Path RELAY = Paths.get("relay.json");
+    
+    /// A score holder whose name displays information about the current RTA.
+    private static final ScoreHolder RTA;
+    
+    /// A score holder whose name displays information about the current IGT.
+    private static final ScoreHolder IGT;
+    
+    /// {@link Relay#timer} counts down from here
+    public static int countdown = 1200;
+    
+    /// The current state of the relay speedrun.
+    private static State state = State.BEFORE_START;
+    
+    /// The players in this server participating in the relay speedrun.
     private static List<ServerPlayerEntity> players;
-    private static ServerPlayerEntity       current;
-    private static UUID                     currentPlayerUuid;
-    private static Text                     currentPlayerName;
-    private static int                      timer, rta, igt;
     
-    private static Scoreboard  scoreboard;
-    private static ScoreAccess rtaScore, igtScore;
+    /// The current player.
+    private static ServerPlayerEntity current;
+    
+    /// The UUID of the current player.
+    private static UUID currentPlayerUuid;
+    
+    /// The display name of the current player.
+    private static Text currentPlayerName;
+    
+    /// The time the current player has left, in ticks.
+    private static int timer;
+    
+    /// The current RTA, in ticks.
+    private static int rta;
+    
+    /// The current IGT, in ticks.
+    private static int igt;
+    
+    /// The scoreboard instance of this server
+    private static Scoreboard scoreboard;
+    
+    /// The score held by score holder {@link Relay#RTA}.
+    private static ScoreAccess rtaScore;
+    
+    /// The score held by score holder {@link Relay#IGT}.
+    private static ScoreAccess igtScore;
+    
+    /// The team containing all spectators.
     private static Team spectator;
     
     static {
@@ -74,7 +107,7 @@ public class Relay {
             
             @Override
             public Text getDisplayName() {
-                return igtScore == null ? null : Text.literal("IGT " + getCountdown(igt)).withColor(0x00ffff);
+                return Text.literal("IGT " + getCountdown(igt)).withColor(0x00ffff);
             }
             
         };
@@ -85,7 +118,7 @@ public class Relay {
             
             @Override
             public Text getDisplayName() {
-                return rtaScore == null ? null : Text.literal("RTA " + getCountdown(rta)).withColor(0xff00ff);
+                return Text.literal("RTA " + getCountdown(rta)).withColor(0xff00ff);
             }
             
         };
@@ -93,6 +126,7 @@ public class Relay {
     
     public static State getCurrentState() { return state; }
     
+    /// Initializes basic fields and reads saved data.
     public static void init(MinecraftServer server) {
         PlayerManager playerManager = server.getPlayerManager();
         players = playerManager.getPlayerList();
@@ -152,6 +186,7 @@ public class Relay {
         }
     }
     
+    /// Saves the current state of the relay speedrun to the file referenced by the path {@link Relay#RELAY}.
     public static void save() {
         if (state == State.RUNNING) pause();
         
@@ -174,6 +209,7 @@ public class Relay {
         } catch (IOException e) { LOGGER.error("error", e); }
     }
     
+    /// Handles new players joining.
     public static void join(ServerPlayerEntity player) {
         switch (state) {
             case State.FORCED_PAUSING:
@@ -187,6 +223,7 @@ public class Relay {
         }
     }
     
+    /// Starts the relay speedrun.
     public static void start() {
         players.forEach(Relay::makeSpectator);
         takeOver(players.getFirst());
@@ -194,16 +231,19 @@ public class Relay {
         LOGGER.info("Relay started");
     }
     
+    /// Pauses the relay speedrun.
     public static void pause() {
         state = State.PAUSING;
         LOGGER.info("Relay paused");
     }
     
+    /// Resumes the relay speedrun.
     public static void resume() {
         state = State.RUNNING;
         LOGGER.info("Relay resumed");
     }
     
+    /// Stops the relay speedrun.
     public static void stop() {
         for (ServerPlayerEntity player : players) {
             if (player == current) continue;
@@ -231,6 +271,7 @@ public class Relay {
         LOGGER.info("Relay stopped");
     }
     
+    /// Called every tick.
     public static void tick(MinecraftServer server) {
         if (!state.isTicking()) return;
         rta++;
@@ -329,16 +370,24 @@ public class Relay {
         updateScore(igtScore);
     }
     
+    /**
+     * Updates a scoreboard score to sync its display text.
+     *
+     * @param score The score to update.
+     */
     private static void updateScore(ScoreAccess score) { score.setScore(score.getScore()); }
     
-    private static String getCurrentPlayerCountdown()  { return getCountdown(timer); }
+    /// Returns the time the current player has left in the form of a displayed string.
+    private static String getCurrentPlayerCountdown() { return getCountdown(timer); }
     
+    /// Returns the time until it is the turn for {@code player} in the form of a displayed string.
     private static String getTotalCountdown(ServerPlayerEntity player) {
         int queuePos = players.indexOf(player) - players.indexOf(current) - 1;
         if (queuePos < 0) queuePos += players.size();
         return getCountdown(timer + queuePos * countdown);
     }
     
+    /// Returns a display string for {@code ticks} in the form of "HH:MM:SS.mm".
     private static String getCountdown(int ticks) {
         StringBuilder sb = new StringBuilder();
         
@@ -372,10 +421,12 @@ public class Relay {
         return sb.toString();
     }
     
+    /// Returns the next player supposed to take over the speedrunner.
     private static ServerPlayerEntity getNextPlayer() {
         return players.get((players.indexOf(current) + 1) % players.size());
     }
     
+    /// Makes {@code player} a spectator.
     private static void makeSpectator(ServerPlayerEntity player) {
         player.changeGameMode(GameMode.SPECTATOR);
         clearEffects(player);
@@ -389,6 +440,7 @@ public class Relay {
         addScoreHolderToTeam(player, spectator);
     }
     
+    /// Makes {@code player} take over the current player.
     private static void takeOver(ServerPlayerEntity player) {
         timer             = countdown;
         currentPlayerUuid = player.getUuid();
@@ -406,19 +458,19 @@ public class Relay {
         
         if (current == player) return;
         replaceTeam(player);
-        replaceFallDistance(player);
-        replacePortalCooldown(player);
-        replaceHP(player);
-        replaceHunger(player);
-        replaceAir(player);
-        replaceXp(player);
-        replaceStatusEffects(player);
-        replaceSelectedHotbarSlot(player);
-        replaceInventory(player);
-        replaceEnderChestInventory(player);
-        replaceSpawnpoint(player);
+        inheritFallDistance(player);
+        inheritPortalCooldown(player);
+        inheritHP(player);
+        inheritHunger(player);
+        inheritAir(player);
+        inheritXp(player);
+        inheritStatusEffects(player);
+        inheritSelectedHotbarSlot(player);
+        inheritInventory(player);
+        inheritEnderChestInventory(player);
+        inheritSpawnpoint(player);
         replaceShoulders(player);
-        replaceSculkShriekerWarnings(player);
+        inheritSculkShriekerWarnings(player);
         iterateEntities(player);
         if (!replaceRiding(player)) tp(player);
         makeSpectator(current);
@@ -426,19 +478,24 @@ public class Relay {
         current = player;
     }
     
+    /// Removes {@code player} from the spectators' team, and add the current player in.
     private static void replaceTeam(ServerPlayerEntity player) {
         removeScoreHolderFromTeam(player, spectator);
         addScoreHolderToTeam(current, spectator);
     }
     
-    private static void replaceFallDistance(ServerPlayerEntity player) { player.fallDistance = current.fallDistance; }
+    /// Inherits the fall distance.
+    private static void inheritFallDistance(ServerPlayerEntity player) { player.fallDistance = current.fallDistance; }
     
-    private static void replacePortalCooldown(
+    /// Inherits the nether portal cooldown.
+    private static void inheritPortalCooldown(
       ServerPlayerEntity player) { player.setPortalCooldown(current.getPortalCooldown()); }
     
-    private static void replaceHP(ServerPlayerEntity player) { player.setHealth(current.getHealth()); }
+    /// Inherits health.
+    private static void inheritHP(ServerPlayerEntity player) { player.setHealth(current.getHealth()); }
     
-    private static void replaceHunger(ServerPlayerEntity player) {
+    /// Inherits hunger.
+    private static void inheritHunger(ServerPlayerEntity player) {
         HungerManager playerhm  = player.getHungerManager();
         HungerManager currenthm = current.getHungerManager();
         playerhm.setFoodLevel(currenthm.getFoodLevel());
@@ -446,25 +503,30 @@ public class Relay {
         ((HungerManagerMixin) playerhm).setExhaustion(((HungerManagerMixin) currenthm).getExhaustion());
     }
     
-    private static void replaceAir(ServerPlayerEntity player) { player.setAir(current.getAir()); }
+    /// Inherits the oxygen level.
+    private static void inheritAir(ServerPlayerEntity player) { player.setAir(current.getAir()); }
     
-    private static void replaceXp(ServerPlayerEntity player) {
+    /// Inherits experience level.
+    private static void inheritXp(ServerPlayerEntity player) {
         player.experienceLevel    = current.experienceLevel;
         player.experienceProgress = current.experienceProgress;
         player.totalExperience    = current.totalExperience;
     }
     
-    private static void replaceStatusEffects(ServerPlayerEntity player) {
+    /// Inherits the status effects.
+    private static void inheritStatusEffects(ServerPlayerEntity player) {
         clearEffects(player);
         for (StatusEffectInstance effect : current.getStatusEffects()) player.addStatusEffect(effect);
     }
     
-    private static void replaceSelectedHotbarSlot(ServerPlayerEntity player) {
+    /// Inherits the selected hotbar slot.
+    private static void inheritSelectedHotbarSlot(ServerPlayerEntity player) {
         player.getInventory().setSelectedSlot(current.getInventory().getSelectedSlot());
         player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(player.getInventory().getSelectedSlot()));
     }
     
-    private static void replaceInventory(ServerPlayerEntity player) {
+    /// Inherits the inventory.
+    private static void inheritInventory(ServerPlayerEntity player) {
         PlayerScreenHandler playersh  = player.playerScreenHandler;
         PlayerScreenHandler currentsh = current.playerScreenHandler;
         
@@ -482,7 +544,8 @@ public class Relay {
         }
     }
     
-    private static void replaceEnderChestInventory(ServerPlayerEntity player) {
+    /// Inherits the ender chest inventory.
+    private static void inheritEnderChestInventory(ServerPlayerEntity player) {
         EnderChestInventory playereci  = player.getEnderChestInventory();
         EnderChestInventory currenteci = current.getEnderChestInventory();
         
@@ -492,7 +555,8 @@ public class Relay {
         }
     }
     
-    private static void replaceSpawnpoint(ServerPlayerEntity player) { player.setSpawnPointFrom(current); }
+    /// Inherits the spawnpoint.
+    private static void inheritSpawnpoint(ServerPlayerEntity player) { player.setSpawnPointFrom(current); }
     
     private static void replaceShoulders(ServerPlayerEntity player) {
         ServerPlayerEntityMixin currentmx        = (ServerPlayerEntityMixin) current;
@@ -510,7 +574,8 @@ public class Relay {
         }
     }
     
-    private static void replaceSculkShriekerWarnings(ServerPlayerEntity player) {
+    /// Inherits data of sculk shrieker warnings.
+    private static void inheritSculkShriekerWarnings(ServerPlayerEntity player) {
         current.getSculkShriekerWarningManager().ifPresent(sswm -> {
             ((SculkShriekerWarningManagerMixin) player
               .getSculkShriekerWarningManager()
@@ -519,6 +584,13 @@ public class Relay {
         });
     }
     
+    /**
+     * <li>Makes every mob targeting the current player target {@code player}.</li>
+     * <li>Makes every pet of the current player be pet of {@code player}.</li>
+     * <li>Makes the owner of every projectile produced by the current player to be {@code player}.</li>
+     * <li>Makes the owner of every tnt entity produced by the current player to be {@code player}.</li>
+     * <li>Makes the owner of every item entity dropped by the current player to be {@code player}.</li>
+     */
     private static void iterateEntities(ServerPlayerEntity player) {
         for (Entity entity : current.getEntityWorld().iterateEntities())
             switch (entity) {
@@ -536,6 +608,7 @@ public class Relay {
             }
     }
     
+    /// Makes {@code player} ride whatever the current player is riding, if they are riding anything.
     private static boolean replaceRiding(ServerPlayerEntity player) {
         Entity vehicle = current.getVehicle();
         if (vehicle != null) {
@@ -546,6 +619,7 @@ public class Relay {
         return false;
     }
     
+    /// Teleports {@code player} to the current player, inheriting their velocity.
     private static void tp(ServerPlayerEntity player) {
         ServerPlayNetworkHandlerMixin handler = (ServerPlayNetworkHandlerMixin) current.networkHandler;
         player.teleportTo(new TeleportTarget(
@@ -555,30 +629,45 @@ public class Relay {
           current.getZ() - handler.getLastTickZ()), current.getYaw(), current.getPitch(), TeleportTarget.NO_OP));
     }
     
+    /// Clear the status effects of {@code player}.
     private static void clearEffects(ServerPlayerEntity player) {
         new ArrayList<>(player.getStatusEffects()).forEach(effect -> player.removeStatusEffect(effect.getEffectType()));
     }
     
+    /// Adds {@code scoreHolder} to {@code team}.
     private static void addScoreHolderToTeam(ScoreHolder scoreHolder, Team team) {
         String name = scoreHolder.getNameForScoreboard();
         scoreboard.addScoreHolderToTeam(name, team);
     }
     
+    /// Safely removes {@code scoreHolder} from {@code team}.
     private static void removeScoreHolderFromTeam(ScoreHolder scoreHolder, Team team) {
         String name = scoreHolder.getNameForScoreboard();
         if (scoreboard.getScoreHolderTeam(name) == team) scoreboard.removeScoreHolderFromTeam(name, team);
     }
     
+    /// An indicator for different stages throughout a relay speedrun.
     public enum State {
         
-        BEFORE_START, RUNNING, PAUSING, FORCED_PAUSING, ENDED;
+        /// Before the relay speedrun has started or after it has been manually stopped.
+        BEFORE_START,
+        /// During the speedrun.
+        RUNNING,
+        /// When the speedrun is paused can be manually resumed.
+        PAUSING,
+        /// When the speedrun is paused forcefully and cannot be manually resumed because the current player is not in the server.
+        FORCED_PAUSING,
+        /// After the dragon has been killed and the relay speedrun has ended.
+        ENDED;
         
         @Override
         public String toString() { return name().toLowerCase(Locale.ROOT); }
         
+        /// Returns {@code true} when {@link Relay#tick} is supposed to run.
         public boolean isTicking() { return this != BEFORE_START && this != ENDED; }
         
-        public boolean isPaused()  { return this == PAUSING || this == FORCED_PAUSING; }
+        /// Returns {@code true} when the relay speedrun is paused.
+        public boolean isPaused() { return this == PAUSING || this == FORCED_PAUSING; }
         
         public static State parse(String str) {
             for (State state : values()) if (state.toString().equals(str)) return state;
