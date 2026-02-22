@@ -560,6 +560,7 @@ public class Relay {
         ItemStack cursor = currentsh.getCursorStack();
         current.dropItem(cursor, false);
         currentsh.setCursorStack(ItemStack.EMPTY);
+        for (ItemStack itemStack : currentsh.getCraftingInput()) current.dropItem(itemStack, false);
         
         List<ItemStack> craftingGrid = currentsh.getCraftingInput().getHeldStacks();
         for (ItemStack itemStack : craftingGrid) current.dropItem(itemStack, false);
