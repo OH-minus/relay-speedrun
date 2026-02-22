@@ -18,17 +18,17 @@ import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.inventory.EnderChestInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
+import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.scoreboard.*;
 import net.minecraft.scoreboard.number.BlankNumberFormat;
 import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
+import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Formatting;
@@ -364,7 +364,34 @@ public class Relay {
         
         // handle taking over
         if (timer % 20 == 0) LOGGER.debug("Timer: {}", currentPlayerCountdown);
-        if (timer == 0) takeOver(next);
+        ServerPlayNetworkHandler networkHandler = next.networkHandler;
+        switch (timer) {
+            case 100,
+                 80,
+                 60,
+                 40,
+                 20 -> networkHandler.sendPacket(new PlaySoundS2CPacket(
+              SoundEvents.BLOCK_NOTE_BLOCK_HARP,
+              SoundCategory.MASTER,
+              0d,
+              320d,
+              0d,
+              10f,
+              1f,
+              0L));
+            case 0 -> {
+                networkHandler.sendPacket(new PlaySoundS2CPacket(
+                  SoundEvents.BLOCK_NOTE_BLOCK_HARP,
+                  SoundCategory.MASTER,
+                  0d,
+                  320d,
+                  0d,
+                  10f,
+                  2f,
+                  0L));
+                takeOver(next);
+            }
+        }
         timer--;
         igt++;
         updateScore(igtScore);
@@ -602,7 +629,8 @@ public class Relay {
                 case ItemEntity item when item.getOwner() == current -> {
                     ItemEntityMixin itemmx = (ItemEntityMixin) item;
                     if (item.getOwner() == current) itemmx.setThrower(LazyEntityReference.of(player));
-                    if (itemmx.getOwnerUuid().equals(current.getUuid())) itemmx.setOwnerUuid(currentPlayerUuid);
+                    UUID owner = itemmx.getOwnerUuid();
+                    if (owner != null && owner.equals(current.getUuid())) itemmx.setOwnerUuid(currentPlayerUuid);
                 }
                 default -> { }
             }
